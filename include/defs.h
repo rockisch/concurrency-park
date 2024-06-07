@@ -7,7 +7,7 @@
 #include <pthread.h>
 #include <semaphore.h>
 
-#define TRUE 1              // Em C nao temos True ou False (como no Python). Usamos macro TRUE para True (como no Python). 
+#define TRUE 1              // Em C nao temos True ou False (como no Python). Usamos macro TRUE para True (como no Python).
 #define FALSE 0             // e FALSE para False (como no Python).
 
 
@@ -26,22 +26,31 @@ typedef struct ticket{
 
 /* Adicione as estruturas de sincronização que achar necessárias */
 typedef struct toy{
+  pthread_t thread;         // A thread de um brinquedo.
   int id;                   // O id de um brinquedo.
   int capacity;             // A capacidade total de um brinquedo.
-  pthread_t thread;         // A thread de um brinquedo.
+
+  int waiting;
+  pthread_mutex_t mutex;
+  pthread_cond_t wait_sig;
+  pthread_cond_t start_sig;
+  sem_t exit_sem;
 } toy_t;
 
 /* Adicione as estruturas de sincronização que achar necessárias */
 typedef struct client{
+  pthread_t thread;         // A thread de um cliente
   int id;                   // O id do cliente.
   int coins;                // Quantidade de moedas do cliente.
   int number_toys;          // Numero de brinquedos disponiveis.
   toy_t **toys;             // (Copy) Array de brinquedos.
+
+  sem_t enter_sig; // Signal that the client has entered the park
 } client_t;
 
 /* Adicione as estruturas de sincronização que achar necessárias */
 typedef struct{
-  ticket_t **tickets;        // Array de funcionarios.                       
+  ticket_t **tickets;        // Array de funcionarios.
   int n;                    // Quantidade de funcionários da bilheteria.
 } tickets_args;
 

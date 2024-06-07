@@ -33,6 +33,7 @@ client_t **init_clients(int number, int toy_number, toy_t **toys){
         clients[i]->coins = 0;
         clients[i]->toys = toys;
         clients[i]->number_toys = toy_number;
+        sem_init(&clients[i]->enter_sig, 0, 0);
     }
     return clients;
 }
@@ -44,13 +45,17 @@ toy_t **init_toys(int number){
         toys[i] = (toy_t *) malloc(sizeof(toy_t));
         toys[i]->id = i + 1;
         toys[i]->capacity = rand() % (MAX_CAPACITY_TOY - 1) + MIN_CAPACITY_TOY;
+        pthread_mutex_init(&toys[i]->mutex, NULL);
+        pthread_cond_init(&toys[i]->wait_sig, NULL);
+        pthread_cond_init(&toys[i]->start_sig, NULL);
+        sem_init(&toys[i]->exit_sem, 0, 0);
     }
     return toys;
 }
 
 // Inicia a instância dos funcionarios
 ticket_t ** init_tickets(int number){
-    ticket_t **tickets = malloc(number * sizeof(toy_t));
+    ticket_t **tickets = malloc(number * sizeof(ticket_t));
     for (int i = 0; i < number; i++){
         tickets[i] = (ticket_t *) malloc(sizeof(ticket_t));
         tickets[i]->id = i + 1;
@@ -101,7 +106,7 @@ int main(int argc, char *argv[]){
 
     //Iniciando a fila.
     init_main_queue();
-    
+
     // Inicializa os brinquedos.
     toy_t **toys = init_toys(_config.toys);
 
@@ -111,13 +116,15 @@ int main(int argc, char *argv[]){
     cli_args->n = _config.clients;
 
     // Inicializa os funcionarios da bilheteria.
-    ticket_t **tickets = init_tickets(_config.toys);
+    ticket_t **tickets = init_tickets(_config.tickets);
     ticket_args->tickets = tickets;
     ticket_args->n = _config.tickets;
-    
+
     // Recebe os argumentos para os brinquedos.
     toys_args->toys = toys;
     toys_args->n = _config.toys;
+
+    sem_init(&global_gate_sem, 0, 0);
 
     // Ligando os brinquedos.
     open_toys(toys_args);
@@ -128,7 +135,7 @@ int main(int argc, char *argv[]){
 
     // Os turistas saem do parque.
     close_gate();
-    
+
     // A bilheteria fecha.
     close_tickets();
 
@@ -140,7 +147,7 @@ int main(int argc, char *argv[]){
 
     // Desalocando clientes.
     finish_clients(clients, _config.clients);
-    
+
     // Desalocando brinquedos.
     finish_toys(toys, _config.toys);
 
@@ -149,8 +156,11 @@ int main(int argc, char *argv[]){
     *           SINCRONIZE O FINAL DA EXECUÇÃO DO PROGRAMA PARTIR DESTE PONTO       *
     *                                       EXCEÇÃO                                 *
     *********************************************************************************/
-    
+
     // Sincronize aqui
+
+    // Because the variables that contain thread handles are freed before this point, the
+    // synchronization is done inside the 'close_X' functions using global variables.
 
     // Desalocando argumentos.
     free(cli_args);
